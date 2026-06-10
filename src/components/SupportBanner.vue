@@ -23,14 +23,14 @@ const dismissed = ref(false)
   <Transition name="support">
     <div
       v-if="!dismissed"
-      class="relative overflow-hidden rounded-2xl border border-amber-200/70 dark:border-amber-700/40 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 p-5 sm:p-6"
+      class="relative overflow-hidden rounded-2xl border border-amber-400/40 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 sm:p-8 shadow-lg"
     >
-      <!-- Soft decorative glow -->
-      <div class="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-amber-300/30 blur-2xl" />
+      <!-- Soft directional glow highlighting the metallic frame -->
+      <div class="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 h-32 w-64 rounded-full bg-amber-300/10 blur-3xl" />
 
       <!-- Dismiss -->
       <button
-        class="absolute top-3 right-3 p-2 rounded-lg text-amber-700/70 dark:text-amber-300/60 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+        class="absolute top-3 right-3 p-2 rounded-lg text-amber-300/50 hover:text-amber-200 hover:bg-amber-900/30 transition-colors"
         aria-label="Dismiss"
         @click="dismissed = true"
       >
@@ -39,38 +39,21 @@ const dismissed = ref(false)
         </svg>
       </button>
 
-      <div class="relative flex flex-col sm:flex-row sm:items-center gap-5">
-        <!-- Copy -->
-        <div class="flex-1">
-          <div class="flex items-center gap-2">
-            <span class="text-2xl">💜</span>
-            <h3 class="text-sm font-semibold text-amber-900 dark:text-amber-100">
-              Saved you some time? Support me via QRIS!
-            </h3>
-          </div>
-          <p class="text-xs text-amber-800/80 dark:text-amber-200/70 mt-1.5 leading-relaxed">
-            OmniDoc OS is free, ad-free, and runs entirely in your browser. If it helped,
-            scan the QRIS code with any Indonesian e-wallet or mobile banking app to send
-            a small tip — no pressure, ever.
-          </p>
+      <!-- Centered QRIS -->
+      <div class="relative flex flex-col items-center gap-3">
+        <div class="rounded-xl bg-white p-3 shadow-md border border-amber-400/40">
+          <img
+            :src="QRIS_IMAGE"
+            alt="QRIS payment barcode to support the developer"
+            width="220"
+            height="220"
+            class="block w-[220px] h-[220px] object-contain"
+            loading="lazy"
+          />
         </div>
-
-        <!-- QRIS barcode -->
-        <div class="shrink-0 flex flex-col items-center gap-2">
-          <div class="rounded-xl bg-white p-3 shadow-sm border border-amber-200/70 dark:border-amber-700/40">
-            <img
-              :src="QRIS_IMAGE"
-              alt="QRIS payment barcode to support the developer"
-              width="220"
-              height="220"
-              class="block w-[220px] h-[220px] object-contain"
-              loading="lazy"
-            />
-          </div>
-          <span class="text-[11px] font-medium text-amber-700/80 dark:text-amber-300/70">
-            Scan to pay with any QRIS app
-          </span>
-        </div>
+        <span class="text-sm font-semibold tracking-wide text-amber-400">
+          Scan to pay with any QRIS app
+        </span>
       </div>
     </div>
   </Transition>
