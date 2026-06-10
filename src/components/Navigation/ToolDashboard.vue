@@ -8,7 +8,6 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { TOOLS, TOOL_CATEGORIES, type ToolCategory, type ToolDefinition } from '@/core/toolRegistry'
 import TrustBadges from '@/components/TrustBadges.vue'
-import SupportBanner from '@/components/SupportBanner.vue'
 
 const router = useRouter()
 const search = ref('')
@@ -125,9 +124,6 @@ function go(tool: ToolDefinition) {
     <div v-if="grouped.length === 0" class="text-center py-12 text-[var(--color-text-muted)]">
       No tools match "{{ search }}".
     </div>
-
-    <!-- Support nudge -->
-    <SupportBanner />
 
     <!-- Trust badges -->
     <div class="pt-4">
