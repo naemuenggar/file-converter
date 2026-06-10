@@ -91,30 +91,30 @@ function go(tool: ToolDefinition) {
         v-model="search"
         type="text"
         placeholder="Search tools..."
-        class="search-input w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--color-surface)] text-sm outline-none"
+        class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm outline-none focus:ring-2 focus:ring-indigo-500"
       />
     </div>
 
     <!-- Categories -->
     <div v-for="group in grouped" :key="group.category" class="space-y-3">
-      <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
         {{ group.label }}
       </h2>
-      <div class="flex flex-wrap justify-center gap-3">
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         <button
           v-for="tool in group.tools"
           :key="tool.id"
-          class="group flex flex-col items-start gap-3 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] hover:border-indigo-300 hover:shadow-md transition-all text-left w-full sm:w-[calc(50%-0.375rem)] lg:w-[calc(33.333%-0.5rem)]"
+          class="group flex flex-col items-start gap-3 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] hover:border-indigo-300 hover:shadow-md transition-all text-left"
           @click="go(tool)"
         >
-          <div class="w-11 h-11 rounded-lg flex items-center justify-center shrink-0" :class="COLOR_CLASSES[tool.color]">
-            <svg class="w-[1.8rem] h-[1.8rem]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="w-11 h-11 rounded-lg flex items-center justify-center" :class="COLOR_CLASSES[tool.color]">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="tool.icon" />
             </svg>
           </div>
           <div>
-            <h3 class="text-sm font-bold text-slate-900 dark:text-white group-hover:text-indigo-500 transition-colors">{{ tool.name }}</h3>
-            <p class="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">{{ tool.description }}</p>
+            <h3 class="text-sm font-semibold group-hover:text-indigo-500 transition-colors">{{ tool.name }}</h3>
+            <p class="text-xs text-[var(--color-text-muted)] mt-0.5 line-clamp-2">{{ tool.description }}</p>
           </div>
         </button>
       </div>
@@ -131,20 +131,3 @@ function go(tool: ToolDefinition) {
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Search bar: clear default border, smooth transitions, purple focus glow */
-.search-input {
-  border: 1px solid #cbd5e1; /* slate-300 for light mode */
-  transition: all 0.2s ease;
-}
-
-:global(.dark) .search-input {
-  border-color: #475569; /* slate-600 for dark mode */
-}
-
-.search-input:focus {
-  border-color: #8b5cf6; /* brand purple */
-  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2);
-}
-</style>
