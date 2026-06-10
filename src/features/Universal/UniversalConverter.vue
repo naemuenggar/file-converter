@@ -7,9 +7,11 @@
  * All buffers stay as ArrayBuffers/Blobs — no base64 in the UI layer.
  */
 import { ref, shallowRef, computed } from 'vue'
+import * as Comlink from 'comlink'
 import { useOmniProcess } from '@/composables/useOmniProcess'
 import { useMemoryManager } from '@/composables/useMemoryManager'
 import { useSaaS } from '@/composables/useSaaS'
+import { checkFileSize } from '@/core/limits'
 import {
   detectFormat, getTargets, formatLabel,
   type FileFormat, type ConversionTarget,
@@ -19,7 +21,8 @@ import ProgressBar from '@/shared/ProgressBar.vue'
 
 interface LoadedFile {
   name: string
-  buffer: ArrayBuffer
+  /** Keep the File handle (re-readable) so transferring its buffer is safe. */
+  file: File
   format: FileFormat
   size: number
   mime: string
@@ -36,21 +39,23 @@ const targets = computed<ConversionTarget[]>(() =>
   loaded.value ? getTargets(loaded.value.format) : []
 )
 
-async function handleFiles(files: File[]) {
+function handleFiles(files: File[]) {
   const file = files[0]
   if (!file) return
-  const buffer = await file.arrayBuffer()
+  // Fix #2 — reject oversized files up front with a friendly message.
+  const sizeErr = checkFileSize(file)
+  if (sizeErr) { error.value = sizeErr; return }
+
+  error.value = null
   const format = detectFormat(file.name, file.type)
   loaded.value = {
     name: file.name,
-    buffer,
+    file,
     format,
     size: file.size,
     mime: file.type || 'application/octet-stream',
   }
-  // Auto-select the first available target
-  const t = getTargets(format)
-  selectedTarget.value = t[0]?.format ?? null
+  selectedTarget.value = getTargets(format)[0]?.format ?? null
 }
 
 function clear() {
@@ -64,36 +69,43 @@ async function convert() {
   const target = selectedTarget.value
 
   const result = await run(async (worker, onProgress) => {
+    // Read the buffer fresh each run; the File handle stays intact even after
+    // we transfer (neuter) the buffer into the worker.
+    const buffer = await src.file.arrayBuffer()
+
     // OCR-based image → text/word paths
     if ((src.format === 'jpg' || src.format === 'png') && (target === 'txt' || target === 'docx')) {
-      const text = await worker.runOCR(src.buffer, src.mime, 'eng', onProgress)
+      const text = await worker.runOCR(Comlink.transfer(buffer, [buffer]), src.mime, 'eng', onProgress)
       if (target === 'txt') {
+        const encoded = new TextEncoder().encode(text)
         return {
-          buffer: new TextEncoder().encode(text).buffer as ArrayBuffer,
+          buffer: encoded.buffer as ArrayBuffer,
           mime: 'text/plain', extension: 'txt',
         }
       }
       return worker.textToDocx(text)
     }
 
-    // PDF → image (single/multi handled via pdfToImages + zip-less direct download of first)
+    // PDF → image
     if (src.format === 'pdf' && (target === 'jpg' || target === 'png')) {
-      const { images } = await worker.pdfToImages(src.buffer, 150, onProgress)
-      // For simplicity return the first page; gallery export lives in PdfToImage
+      const { images } = await worker.pdfToImages(Comlink.transfer(buffer, [buffer]), 150, onProgress)
+      // Fix #3 — guard against an empty/zero-page PDF before indexing.
+      if (!images || images.length === 0) {
+        throw new Error('This PDF has no pages to export as an image.')
+      }
       return { buffer: images[0].buffer, mime: 'image/jpeg', extension: 'jpg' }
     }
 
     // PDF → other documents
     if (src.format === 'pdf') {
-      return worker.convertFromPdf(src.buffer, target, onProgress)
+      return worker.convertFromPdf(Comlink.transfer(buffer, [buffer]), target, onProgress)
     }
 
     // Anything → PDF
     if (target === 'pdf') {
-      return worker.convertToPdf(src.buffer, src.format, onProgress)
+      return worker.convertToPdf(Comlink.transfer(buffer, [buffer]), src.format, onProgress)
     }
 
-    // CSV ↔ Excel / Excel → CSV/HTML handled by convertToPdf for pdf; for others:
     throw new Error(`Conversion ${src.format} → ${target} is not available yet`)
   })
 

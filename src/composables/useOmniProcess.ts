@@ -7,6 +7,7 @@
 import { ref } from 'vue'
 import * as Comlink from 'comlink'
 import { getOmniWorker } from '@/core/workerInit'
+import { friendlyError } from '@/core/errors'
 import type { ProgressFn } from '@/workers/omniWorker'
 
 export function useOmniProcess() {
@@ -31,10 +32,19 @@ export function useOmniProcess() {
 
   /**
    * Generic runner with full state + error management.
+   *
+   * Fix #7 — Concurrent-run guard: if a job is already running we refuse to
+   * start another, preventing the shared progress/error state from being
+   * corrupted by overlapping jobs.
    */
   async function run<T>(
     op: (worker: ReturnType<typeof getOmniWorker>, onProgress: ProgressFn) => Promise<T>
   ): Promise<T | null> {
+    if (isProcessing.value) {
+      console.warn('[useOmniProcess] A job is already running; ignoring concurrent request.')
+      return null
+    }
+
     reset()
     isProcessing.value = true
     try {
@@ -44,7 +54,8 @@ export function useOmniProcess() {
       message.value = 'Done'
       return result
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Conversion failed'
+      // Fix #3 — surface a clean, human-readable message instead of raw stack text.
+      error.value = friendlyError(err)
       console.error('[useOmniProcess]', err)
       return null
     } finally {

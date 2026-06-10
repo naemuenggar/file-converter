@@ -9,6 +9,7 @@
  */
 import { ref, reactive } from 'vue'
 import { useWorkerProcess } from '@/composables/useWorkerProcess'
+import { checkFileSize } from '@/core/limits'
 import DragDropZone from '@/shared/DragDropZone.vue'
 import ProgressBar from '@/shared/ProgressBar.vue'
 
@@ -39,6 +40,9 @@ const { progress, message, isProcessing, error, execute, downloadBuffer } = useW
 async function handleFilesSelected(files: File[]) {
   const file = files[0]
   if (!file) return
+  const sizeErr = checkFileSize(file)
+  if (sizeErr) { error.value = sizeErr; return }
+  error.value = null
   const buffer = await file.arrayBuffer()
   sourceFile.value = { name: file.name, buffer }
 }

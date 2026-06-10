@@ -9,6 +9,7 @@
 import { ref, shallowRef, computed, watch } from 'vue'
 import { useWorkerProcess } from '@/composables/useWorkerProcess'
 import { useCloudSync } from '@/composables/useCloudSync'
+import { checkFileSize } from '@/core/limits'
 import { saveWorkspace, type PageEntry, type WorkspaceState } from '@/core/indexedDb'
 import DragDropZone from '@/shared/DragDropZone.vue'
 import ProgressBar from '@/shared/ProgressBar.vue'
@@ -47,6 +48,8 @@ let sortableInstance: Sortable | null = null
 
 async function handleFilesSelected(files: File[]) {
   for (const file of files) {
+    const sizeErr = checkFileSize(file)
+    if (sizeErr) { error.value = sizeErr; continue }
     const buffer = await file.arrayBuffer()
     const id = crypto.randomUUID()
 

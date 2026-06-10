@@ -6,13 +6,15 @@
  * extracted text, then export to .txt or .docx. No data ever leaves the browser.
  */
 import { ref } from 'vue'
+import * as Comlink from 'comlink'
 import { useOmniProcess } from '@/composables/useOmniProcess'
 import { useMemoryManager } from '@/composables/useMemoryManager'
+import { checkFileSize } from '@/core/limits'
 import { detectFormat } from '@/core/formats'
 import DragDropZone from '@/shared/DragDropZone.vue'
 import ProgressBar from '@/shared/ProgressBar.vue'
 
-const source = ref<{ name: string; buffer: ArrayBuffer; mime: string; isPdf: boolean } | null>(null)
+const source = ref<{ name: string; file: File; mime: string; isPdf: boolean } | null>(null)
 const extractedText = ref('')
 const lang = ref('eng')
 
@@ -29,14 +31,18 @@ const LANGS = [
   { code: 'ind', name: 'Indonesian' },
 ]
 
-async function handleFiles(files: File[]) {
+function handleFiles(files: File[]) {
   const file = files[0]
   if (!file) return
-  const buffer = await file.arrayBuffer()
+  // Fix #2 — size guard before reading anything into memory.
+  const sizeErr = checkFileSize(file)
+  if (sizeErr) { error.value = sizeErr; return }
+
+  error.value = null
   const fmt = detectFormat(file.name, file.type)
   source.value = {
     name: file.name,
-    buffer,
+    file,
     mime: file.type || 'image/png',
     isPdf: fmt === 'pdf',
   }
@@ -48,10 +54,12 @@ async function runRecognition() {
   const src = source.value
 
   const text = await run(async (worker, onProgress) => {
+    // Read fresh + transfer ownership into the worker (zero-copy).
+    const buffer = await src.file.arrayBuffer()
     if (src.isPdf) {
-      return worker.ocrPdf(src.buffer, lang.value, onProgress)
+      return worker.ocrPdf(Comlink.transfer(buffer, [buffer]), lang.value, onProgress)
     }
-    return worker.runOCR(src.buffer, src.mime, lang.value, onProgress)
+    return worker.runOCR(Comlink.transfer(buffer, [buffer]), src.mime, lang.value, onProgress)
   })
 
   if (text !== null) {

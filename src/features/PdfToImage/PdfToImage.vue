@@ -12,6 +12,7 @@
  */
 import { ref, shallowRef, onUnmounted } from 'vue'
 import { useWorkerProcess } from '@/composables/useWorkerProcess'
+import { checkFileSize } from '@/core/limits'
 import DragDropZone from '@/shared/DragDropZone.vue'
 import ProgressBar from '@/shared/ProgressBar.vue'
 
@@ -35,6 +36,9 @@ const objectUrls: string[] = []
 async function handleFilesSelected(files: File[]) {
   const file = files[0]
   if (!file) return
+
+  const sizeErr = checkFileSize(file)
+  if (sizeErr) { error.value = sizeErr; return }
 
   // Cleanup previous results
   cleanupUrls()

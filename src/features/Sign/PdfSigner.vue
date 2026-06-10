@@ -11,6 +11,7 @@ import SignaturePad from 'signature_pad'
 import { useOmniProcess } from '@/composables/useOmniProcess'
 import { useMemoryManager } from '@/composables/useMemoryManager'
 import { getOmniWorker } from '@/core/workerInit'
+import { checkFileSize } from '@/core/limits'
 import DragDropZone from '@/shared/DragDropZone.vue'
 
 const source = shallowRef<{ name: string; buffer: ArrayBuffer } | null>(null)
@@ -34,6 +35,9 @@ const { createUrl, revokeUrl, downloadBlob } = useMemoryManager()
 async function handleFiles(files: File[]) {
   const file = files[0]
   if (!file) return
+  const sizeErr = checkFileSize(file)
+  if (sizeErr) { error.value = sizeErr; return }
+  error.value = null
   const buffer = await file.arrayBuffer()
   source.value = { name: file.name, buffer }
   pageIndex.value = 0
@@ -44,6 +48,10 @@ async function renderPreview() {
   if (!source.value) return
   const worker = getOmniWorker()
   const { images } = await worker.pdfToImages(source.value.buffer, 110)
+  if (!images || images.length === 0) {
+    error.value = 'This PDF has no renderable pages.'
+    return
+  }
   pageCount.value = images.length
   const target = images[pageIndex.value] ?? images[0]
   if (pageImageUrl.value) revokeUrl(pageImageUrl.value)

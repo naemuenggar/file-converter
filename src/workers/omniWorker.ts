@@ -41,6 +41,20 @@ export interface MultiImageResult {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * Local, same-origin Tesseract assets so OCR works under strict COEP/COOP.
+ * The worker + core wasm are copied into public/tesseract by scripts/copy-tesseract.mjs.
+ * Cross-origin CDN loading is what COEP blocks — serving them same-origin fixes it.
+ */
+const TESSERACT_OPTIONS = {
+  workerPath: '/tesseract/worker.min.js',
+  corePath: '/tesseract/core',
+  // Language traineddata. jsDelivr serves valid CORS headers and loads fine under
+  // `Cross-Origin-Embedder-Policy: credentialless`. Self-host under /tesseract/lang
+  // for a fully air-gapped/offline setup.
+  langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+}
+
 async function renderPdfPageToBlob(
   pdf: pdfjsLib.PDFDocumentProxy,
   pageNumber: number,
@@ -83,6 +97,7 @@ const api = {
   ): Promise<string> {
     const { createWorker } = await import('tesseract.js')
     const worker = await createWorker(lang, 1, {
+      ...TESSERACT_OPTIONS,
       logger: (m: { status: string; progress: number }) => {
         if (onProgress && m.status === 'recognizing text') {
           onProgress(Math.round(m.progress * 100), 'Recognizing text...')
@@ -110,7 +125,7 @@ const api = {
     const { createWorker } = await import('tesseract.js')
     const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(pdfBuffer) }).promise
     const total = pdf.numPages
-    const worker = await createWorker(lang)
+    const worker = await createWorker(lang, 1, TESSERACT_OPTIONS)
     const chunks: string[] = []
 
     try {
@@ -217,7 +232,7 @@ const api = {
     }
 
     pdf.cleanup()
-    return { images }
+    return Comlink.transfer({ images }, images.map((i) => i.buffer))
   },
 
   /**
@@ -244,11 +259,14 @@ const api = {
 
     pdf.cleanup()
     const out = (await pptx.write({ outputType: 'arraybuffer' })) as ArrayBuffer
-    return {
-      buffer: out,
-      mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      extension: 'pptx',
-    }
+    return Comlink.transfer(
+      {
+        buffer: out,
+        mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        extension: 'pptx',
+      },
+      [out]
+    )
   },
 
   /**
@@ -275,11 +293,14 @@ const api = {
     const doc = new Document({ sections: [{ children: paragraphs }] })
     const blob = await Packer.toBlob(doc)
     const out = await blob.arrayBuffer()
-    return {
-      buffer: out,
-      mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      extension: 'docx',
-    }
+    return Comlink.transfer(
+      {
+        buffer: out,
+        mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        extension: 'docx',
+      },
+      [out]
+    )
   },
 
   /**
@@ -300,11 +321,11 @@ const api = {
 
     pdf.cleanup()
     const text = chunks.join('\n\n')
-    return {
-      buffer: new TextEncoder().encode(text).buffer as ArrayBuffer,
-      mime: 'text/plain',
-      extension: 'txt',
-    }
+    const encoded = new TextEncoder().encode(text)
+    return Comlink.transfer(
+      { buffer: encoded.buffer as ArrayBuffer, mime: 'text/plain', extension: 'txt' },
+      [encoded.buffer as ArrayBuffer]
+    )
   },
 
   /**
@@ -318,11 +339,14 @@ const api = {
     const doc = new Document({ sections: [{ children: paragraphs }] })
     const blob = await Packer.toBlob(doc)
     const out = await blob.arrayBuffer()
-    return {
-      buffer: out,
-      mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      extension: 'docx',
-    }
+    return Comlink.transfer(
+      {
+        buffer: out,
+        mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        extension: 'docx',
+      },
+      [out]
+    )
   },
 
   // ─── Internal builders ──────────────────────────────────────────────────────
@@ -339,26 +363,38 @@ const api = {
     const maxWidth = pageWidth - margin * 2
     const lineHeight = fontSize * 1.4
 
-    // Word-wrap the text
-    const words = text.replace(/\r/g, '').split(/(\s+)/)
-    const lines: string[] = []
-    let current = ''
+    // The standard Helvetica font is WinAnsi-encoded and throws on non-Latin
+    // glyphs (CJK, Arabic, emoji, etc.). Substitute anything it can't encode so
+    // multilingual OCR output never crashes the generator.
+    const sanitize = (s: string): string => s.replace(/[^\x00-\xff]/g, '?')
 
-    for (const word of words) {
-      const test = current + word
-      const width = font.widthOfTextAtSize(test.replace(/\n/g, ''), fontSize)
-      if (word.includes('\n')) {
-        const parts = (current + word).split('\n')
-        for (let p = 0; p < parts.length - 1; p++) lines.push(parts[p])
-        current = parts[parts.length - 1]
-      } else if (width > maxWidth) {
-        lines.push(current)
-        current = word
-      } else {
-        current = test
+    // Linear word-wrap: measure each word ONCE and track running width as a
+    // number (avoids O(n²) re-measuring of an ever-growing line string).
+    const spaceWidth = font.widthOfTextAtSize(' ', fontSize)
+    const lines: string[] = []
+
+    for (const rawLine of sanitize(text).replace(/\r/g, '').split('\n')) {
+      const words = rawLine.split(/\s+/).filter(Boolean)
+      if (words.length === 0) {
+        lines.push('')
+        continue
       }
+      let currentWords: string[] = []
+      let currentWidth = 0
+      for (const word of words) {
+        const wordWidth = font.widthOfTextAtSize(word, fontSize)
+        const addWidth = currentWords.length === 0 ? wordWidth : spaceWidth + wordWidth
+        if (currentWidth + addWidth > maxWidth && currentWords.length > 0) {
+          lines.push(currentWords.join(' '))
+          currentWords = [word]
+          currentWidth = wordWidth
+        } else {
+          currentWords.push(word)
+          currentWidth += addWidth
+        }
+      }
+      if (currentWords.length) lines.push(currentWords.join(' '))
     }
-    if (current) lines.push(current)
 
     let page = doc.addPage([pageWidth, pageHeight])
     let y = pageHeight - margin
@@ -368,13 +404,16 @@ const api = {
         page = doc.addPage([pageWidth, pageHeight])
         y = pageHeight - margin
       }
-      page.drawText(line, { x: margin, y, size: fontSize, font, color: rgb(0.1, 0.1, 0.1) })
+      if (line) {
+        page.drawText(line, { x: margin, y, size: fontSize, font, color: rgb(0.1, 0.1, 0.1) })
+      }
       y -= lineHeight
     }
 
     onProgress?.(90, 'Saving PDF...')
     const bytes = await doc.save()
-    return { buffer: bytes.buffer as ArrayBuffer, mime: 'application/pdf', extension: 'pdf' }
+    const out = bytes.buffer as ArrayBuffer
+    return Comlink.transfer({ buffer: out, mime: 'application/pdf', extension: 'pdf' }, [out])
   },
 
   /** Embed a single image into a PDF page sized to the image */
@@ -394,7 +433,8 @@ const api = {
 
     onProgress?.(90, 'Saving PDF...')
     const bytes = await doc.save()
-    return { buffer: bytes.buffer as ArrayBuffer, mime: 'application/pdf', extension: 'pdf' }
+    const out = bytes.buffer as ArrayBuffer
+    return Comlink.transfer({ buffer: out, mime: 'application/pdf', extension: 'pdf' }, [out])
   },
 
   /**
@@ -421,7 +461,8 @@ const api = {
     })
 
     const bytes = await doc.save()
-    return bytes.buffer as ArrayBuffer
+    const out = bytes.buffer as ArrayBuffer
+    return Comlink.transfer(out, [out])
   },
 }
 

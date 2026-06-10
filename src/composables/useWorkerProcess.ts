@@ -7,6 +7,7 @@
  */
 import { ref, shallowRef, onUnmounted } from 'vue'
 import { getPdfWorker } from '@/core/workerInit'
+import { friendlyError } from '@/core/errors'
 import * as Comlink from 'comlink'
 import type { ProgressCallback } from '@/workers/pdfWorker'
 
@@ -58,6 +59,12 @@ export function useWorkerProcess() {
       onProgress: ProgressCallback
     ) => Promise<T>
   ): Promise<T | null> {
+    // Fix #7 — refuse overlapping jobs that would corrupt shared state.
+    if (isProcessing.value) {
+      console.warn('[useWorkerProcess] A job is already running; ignoring concurrent request.')
+      return null
+    }
+
     reset()
     isProcessing.value = true
 
@@ -69,8 +76,8 @@ export function useWorkerProcess() {
       message.value = 'Complete'
       return result
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'An unknown error occurred'
-      error.value = msg
+      // Fix #3 — clean, user-friendly error text.
+      error.value = friendlyError(err)
       console.error('[useWorkerProcess]', err)
       return null
     } finally {

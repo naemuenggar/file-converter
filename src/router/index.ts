@@ -58,13 +58,6 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/features/PdfSecurity/PdfSecurity.vue'),
   },
 
-  // ─── Account / Auth ─────────────────────────────────────────────────────────
-  {
-    path: '/account',
-    name: 'account',
-    component: () => import('@/features/Auth/AuthPanel.vue'),
-  },
-
   // ─── Generic conversion tools → UniversalConverter ──────────────────────────
   // Every remaining tool id from the registry resolves here. The converter
   // auto-detects the dropped file and offers the relevant targets.

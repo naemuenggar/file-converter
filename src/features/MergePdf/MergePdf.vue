@@ -8,6 +8,7 @@
 import { ref } from 'vue'
 import { useWorkerProcess } from '@/composables/useWorkerProcess'
 import { useCloudSync } from '@/composables/useCloudSync'
+import { checkFileSize } from '@/core/limits'
 import DragDropZone from '@/shared/DragDropZone.vue'
 import ProgressBar from '@/shared/ProgressBar.vue'
 import Sortable from 'sortablejs'
@@ -31,6 +32,8 @@ const { syncMetadata } = useCloudSync()
 
 async function handleFilesSelected(newFiles: File[]) {
   for (const file of newFiles) {
+    const sizeErr = checkFileSize(file)
+    if (sizeErr) { error.value = sizeErr; continue }
     const buffer = await file.arrayBuffer()
     files.value.push({
       id: crypto.randomUUID(),
