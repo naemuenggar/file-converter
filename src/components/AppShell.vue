@@ -21,9 +21,7 @@ const { isDark, toggle } = useDarkMode()
       <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <!-- Logo -->
         <button class="flex items-center gap-2" @click="router.push('/')">
-          <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <span class="text-white font-bold text-sm">O</span>
-          </div>
+          <img src="/favicon.svg" alt="OmniDoc OS logo" class="w-8 h-8" width="32" height="32" />
           <span class="font-semibold">OmniDoc OS</span>
         </button>
 
