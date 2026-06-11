@@ -65,10 +65,14 @@ function go(tool: ToolDefinition) {
 <template>
   <div class="space-y-16">
     <!-- ─── Hero ──────────────────────────────────────────────────────────── -->
-    <section class="relative -mx-4 sm:-mx-6 px-4 sm:px-6 pt-6 pb-4 overflow-hidden">
-      <FloatingBackground :intensity="0.9" />
+    <!-- Full-bleed: section spans the whole viewport width so the gradient
+         reaches both screen edges; content stays centered in an inner wrapper. -->
+    <section class="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden pt-10 pb-12">
+      <FloatingBackground :intensity="1" />
 
-      <div class="relative text-center space-y-6 py-8">
+      <div class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 text-center space-y-6 py-8">
+
+
         <SectionReveal as="h1" class="text-4xl sm:text-5xl font-bold tracking-tight leading-tight">
           Every document tool,<br class="hidden sm:block" />
           <span class="text-gradient">100% in your browser</span>

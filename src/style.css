@@ -54,6 +54,7 @@ body {
   transition: background-color 0.3s, color 0.3s;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
 }
 
 /* ─── Reusable premium utilities ─────────────────────────────────────────── */
