@@ -1,13 +1,18 @@
 <script setup lang="ts">
 /**
  * ToolDashboard — the OmniDoc OS homepage.
- * A searchable, category-grouped grid of every tool, plus quick access to the
- * Universal Converter and OCR Studio.
+ * A searchable, category-grouped grid of every tool, wrapped in a premium hero
+ * with an ambient floating background, gradient headline, format chips, and
+ * scroll-reveal sections.
  */
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { TOOLS, TOOL_CATEGORIES, type ToolCategory, type ToolDefinition } from '@/core/toolRegistry'
 import TrustBadges from '@/components/TrustBadges.vue'
+import FloatingBackground from '@/shared/FloatingBackground.vue'
+import FormatChip from '@/shared/FormatChip.vue'
+import MotionButton from '@/shared/MotionButton.vue'
+import SectionReveal from '@/shared/SectionReveal.vue'
 
 const router = useRouter()
 const search = ref('')
@@ -28,6 +33,9 @@ const grouped = computed(() => {
   }
   return result
 })
+
+// Formats showcased in the hero chip row.
+const FORMATS = ['PDF', 'DOCX', 'XLSX', 'PPTX', 'JPG', 'PNG', 'HTML', 'TXT']
 
 // Tailwind color → classes map (static so JIT keeps them)
 const COLOR_CLASSES: Record<string, string> = {
@@ -55,79 +63,103 @@ function go(tool: ToolDefinition) {
 </script>
 
 <template>
-  <div class="space-y-8">
-    <!-- Hero -->
-    <div class="text-center space-y-3 py-4">
-      <h1 class="text-3xl sm:text-4xl font-bold">
-        Every document tool, <span class="text-indigo-500">100% in your browser</span>
-      </h1>
-      <p class="text-[var(--color-text-muted)] max-w-2xl mx-auto">
-        Convert, edit, sign, and OCR any file. Nothing is ever uploaded — your data never leaves your device.
-      </p>
+  <div class="space-y-16">
+    <!-- ─── Hero ──────────────────────────────────────────────────────────── -->
+    <section class="relative -mx-4 sm:-mx-6 px-4 sm:px-6 pt-6 pb-4 overflow-hidden">
+      <FloatingBackground :intensity="0.9" />
 
-      <!-- Quick actions -->
-      <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
-        <button
-          class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
-          @click="router.push('/convert')"
+      <div class="relative text-center space-y-6 py-8">
+        <SectionReveal as="h1" class="text-4xl sm:text-5xl font-bold tracking-tight leading-tight">
+          Every document tool,<br class="hidden sm:block" />
+          <span class="text-gradient">100% in your browser</span>
+        </SectionReveal>
+
+        <SectionReveal
+          as="p"
+          :delay="80"
+          class="text-base sm:text-lg text-[var(--color-text-muted)] max-w-2xl mx-auto"
         >
-          Universal Converter
-        </button>
-        <button
-          class="px-5 py-2.5 border border-[var(--color-border)] rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
-          @click="router.push('/ocr')"
-        >
-          OCR Studio
-        </button>
+          Convert, edit, sign, and OCR any file. Nothing is ever uploaded — your data
+          never leaves your device.
+        </SectionReveal>
+
+        <!-- Quick actions -->
+        <SectionReveal :delay="160" class="flex flex-wrap items-center justify-center gap-3 pt-1">
+          <MotionButton variant="primary" size="lg" @click="router.push('/convert')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Universal Converter
+          </MotionButton>
+          <MotionButton variant="secondary" size="lg" @click="router.push('/ocr')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M8 12h8" />
+            </svg>
+            OCR Studio
+          </MotionButton>
+        </SectionReveal>
+
+        <!-- Format chips -->
+        <SectionReveal :delay="240" class="flex flex-wrap items-center justify-center gap-2 pt-2 max-w-2xl mx-auto">
+          <FormatChip v-for="f in FORMATS" :key="f" :label="f" />
+        </SectionReveal>
       </div>
-    </div>
+    </section>
 
-    <!-- Search -->
-    <div class="max-w-md mx-auto relative">
-      <svg class="w-5 h-5 text-[var(--color-text-muted)] absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <!-- ─── Search ────────────────────────────────────────────────────────── -->
+    <div class="max-w-lg mx-auto relative -mt-6">
+      <svg class="w-5 h-5 text-[var(--color-text-muted)] absolute left-4 top-1/2 -translate-y-1/2 z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
       </svg>
       <input
         v-model="search"
         type="text"
-        placeholder="Search tools..."
-        class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+        placeholder="Search 24 tools..."
+        class="w-full pl-12 pr-4 py-3.5 rounded-2xl glass text-sm outline-none transition-all duration-300 focus:shadow-[var(--glow)] focus:border-indigo-400/60"
       />
     </div>
 
-    <!-- Categories -->
-    <div v-for="group in grouped" :key="group.category" class="space-y-3">
-      <h2 class="text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+    <!-- ─── Categories ────────────────────────────────────────────────────── -->
+    <SectionReveal
+      v-for="(group, gi) in grouped"
+      :key="group.category"
+      :delay="gi * 60"
+      class="space-y-4"
+    >
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
         {{ group.label }}
       </h2>
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         <button
           v-for="tool in group.tools"
           :key="tool.id"
-          class="group flex flex-col items-start gap-3 p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] hover:border-indigo-300 hover:shadow-md transition-all text-left"
+          class="hover-lift group flex flex-col items-start gap-3 p-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] text-left"
           @click="go(tool)"
         >
-          <div class="w-11 h-11 rounded-lg flex items-center justify-center" :class="COLOR_CLASSES[tool.color]">
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110" :class="COLOR_CLASSES[tool.color]">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="tool.icon" />
             </svg>
           </div>
           <div>
-            <h3 class="text-sm font-semibold group-hover:text-indigo-500 transition-colors">{{ tool.name }}</h3>
-            <p class="text-xs text-[var(--color-text-muted)] mt-0.5 line-clamp-2">{{ tool.description }}</p>
+            <h3 class="text-sm font-bold group-hover:text-indigo-500 transition-colors">{{ tool.name }}</h3>
+            <p class="text-xs text-[var(--color-text-muted)] mt-1 line-clamp-2">{{ tool.description }}</p>
           </div>
         </button>
       </div>
-    </div>
+    </SectionReveal>
 
     <!-- Empty -->
-    <div v-if="grouped.length === 0" class="text-center py-12 text-[var(--color-text-muted)]">
-      No tools match "{{ search }}".
+    <div v-if="grouped.length === 0" class="text-center py-16 text-[var(--color-text-muted)]">
+      <p class="text-lg">No tools match "{{ search }}".</p>
+      <button class="mt-3 text-indigo-500 font-medium hover:underline" @click="search = ''">
+        Clear search
+      </button>
     </div>
 
     <!-- Trust badges -->
-    <div class="pt-4">
+    <SectionReveal class="pt-4">
       <TrustBadges />
-    </div>
+    </SectionReveal>
   </div>
 </template>

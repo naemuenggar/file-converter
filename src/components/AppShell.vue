@@ -8,6 +8,7 @@
  */
 import { useRouter, useRoute } from 'vue-router'
 import { useDarkMode } from '@/composables/useDarkMode'
+import MotionButton from '@/shared/MotionButton.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -17,26 +18,27 @@ const { isDark, toggle } = useDarkMode()
 <template>
   <div class="min-h-screen flex flex-col bg-[var(--color-surface)] text-[var(--color-text)]">
     <!-- Header -->
-    <header class="sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-surface)]/80 backdrop-blur">
+    <header class="sticky top-0 z-20 glass border-x-0 border-t-0 border-b border-[var(--color-border)]">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <!-- Logo -->
-        <button class="flex items-center gap-2" @click="router.push('/')">
-          <img src="/favicon.svg" alt="OmniDoc OS logo" class="w-8 h-8" width="32" height="32" />
-          <span class="font-semibold">OmniDoc OS</span>
+        <button class="flex items-center gap-2.5 group" @click="router.push('/')">
+          <img src="/favicon.svg" alt="OmniDoc OS logo" class="w-8 h-8 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3" width="32" height="32" />
+          <span class="font-bold text-lg tracking-tight">Omni<span class="text-gradient">Doc</span> OS</span>
         </button>
 
         <!-- Right controls — tools + theme only, no auth -->
         <div class="flex items-center gap-2">
-          <button
+          <MotionButton
             v-if="route.path !== '/'"
-            class="px-3 py-1.5 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+            variant="ghost"
+            size="sm"
             @click="router.push('/')"
           >
             All Tools
-          </button>
+          </MotionButton>
 
           <button
-            class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+            class="p-2 rounded-xl hover:bg-[var(--color-surface-alt)] transition-colors"
             :title="isDark ? 'Light mode' : 'Dark mode'"
             :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
             @click="toggle"
